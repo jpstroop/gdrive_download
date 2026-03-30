@@ -28,15 +28,15 @@ On first run the tool opens a browser for the OAuth consent flow and caches the 
 
 This tool requests the `drive.readonly` scope only. It can list and download files but cannot create, modify, or delete anything in your Drive.
 
-> **When setting up OAuth consent:** you will be asked to add scopes during the client configuration wizard. `drive.readonly` is not shown on the first page — click **Add or remove scopes** and paste in the full URL to find it:
->
-> ```
-> https://www.googleapis.com/auth/drive.readonly
-> ```
->
-> Do not grant broader scopes like `drive` or `drive.file`; `drive.readonly` is sufficient and safest.
+**When setting up OAuth consent:** you will be asked to add scopes during the client configuration wizard. `drive.readonly` is not shown on the first page — click **Add or remove scopes** and paste in the full URL to find it:
 
-> `credentials.json` and `token.json` are gitignored. Do not commit them.
+```
+https://www.googleapis.com/auth/drive.readonly
+```
+
+Do not grant broader scopes like `drive` or `drive.file`; `drive.readonly` is sufficient and safest.
+
+`credentials.json` and `token.json` are gitignored. Do not commit them.
 
 ______________________________________________________________________
 
@@ -131,9 +131,9 @@ Downloads all files in a folder, preserving the directory structure.
 {
   "name": "My Files",
   "type": "folder",
-  "folder_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms",
+  "folder_id": "<FOLDER_ID>",
   "recursive": true,
-  "dest": "/Volumes/myhome/Photos"
+  "dest": "/Volumes/myhome/my_files"
 }
 ```
 
@@ -153,7 +153,7 @@ Downloads all files matching a [Drive API query string](#drive-query-syntax).
 {
   "name": "Takeout Archives",
   "type": "query",
-  "q": "'1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms' in parents and trashed=false",
+  "q": "'<SOME_ID>' in parents and trashed=false",
   "dest": "/Volumes/myhome/takeout"
 }
 ```
@@ -202,7 +202,7 @@ The `q` field accepts the [Drive API search query language](https://developers.g
 
 ```
 # All files in a specific folder (non-recursive)
-'1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms' in parents and trashed=false
+'<FOLDER_ID>' in parents and trashed=false
 
 # All PDFs modified after 2024
 mimeType='application/pdf' and modifiedTime>'2024-01-01T00:00:00' and trashed=false
