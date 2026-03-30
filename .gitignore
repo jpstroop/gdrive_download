@@ -1,0 +1,16 @@
+*.py[codz]
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pdm-python
+credentials.json
+token.json
+*.part
+
+# Manifests and queries — ignore everything except examples
+manifests/
+*_manifest.json
+manifest.json
+queries/*
+!queries/example_*.json

@@ -1,0 +1,7 @@
+{
+  "name": "My Drive Folder",
+  "type": "folder",
+  "folder_id": "REPLACE_WITH_FOLDER_ID",
+  "recursive": true,
+  "dest": "/Volumes/MyDrive"
+}

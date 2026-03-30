@@ -1,0 +1,6 @@
+{
+  "name": "Files matching a Drive query",
+  "type": "query",
+  "q": "'REPLACE_WITH_FOLDER_ID' in parents and trashed=false",
+  "dest": "/Volumes/MyDrive"
+}
