@@ -1,6 +1,6 @@
 # Drive Batch Downloader
 
-Resumable, checksum-verified Google Drive downloader. Download entire folders, or any set of files matching a Drive API query, in batches that fit available disk space. State is tracked in a manifest file so downloads survive interruptions and can be spread across multiple sessions.
+Resumable, checksum-verified Google Drive downloader. Download entire folders, or any set of files matching a Drive API query, in batches that fit available disk space. Progress is tracked in a local manifest file — a tool-managed JSON record of what exists and what has been downloaded — so runs survive interruptions and can be spread across multiple sessions.
 
 ______________________________________________________________________
 
@@ -43,15 +43,15 @@ ______________________________________________________________________
 ## Workflow
 
 ```
-              ┌──────────────────┐
-              │  query JSON file │
-              └────────┬─────────┘
+              ┌─────────────────┐
+              │ JSON query file │
+              └────────┬────────┘
                        │
                   gdrive build        ← enumerates files, fetches metadata
                        │
-              ┌────────▼─────────┐
-              │  manifest JSON   │    ← tracks per-file status across sessions
-              └────────┬─────────┘
+             ┌─────────▼──────────┐
+             │ JSON manifest file │   ← tracks per-file status across sessions
+             └─────────┬──────────┘
                        │
                   gdrive status       ← inspect size and progress at any time
                        │
@@ -121,11 +121,11 @@ ______________________________________________________________________
 
 Query files are JSON and live in `queries/`. They describe what to download and, optionally, where to put it. See `queries/` for examples.
 
-The `type` field controls which enumeration strategy is used — `"folder"` or `"query"` are the only valid values:
+The `type` field controls which enumeration strategy is used — `"folder"` or `"query"` are the only valid values. Use `"folder"` when you need to preserve directory structure; use `"query"` when you just want a flat collection of files matching some criteria.
 
 ### Folder download
 
-Downloads all files in a folder, preserving the directory structure.
+Downloads all files in a folder, preserving the directory structure. The tool traverses the hierarchy and records each file's path relative to the root folder, so the layout is recreated on disk.
 
 ```json
 {
@@ -151,10 +151,10 @@ Downloads all files matching a [Drive API query string](#drive-query-syntax).
 
 ```json
 {
-  "name": "Takeout Archives",
+  "name": "Shared photos",
   "type": "query",
-  "q": "'<SOME_ID>' in parents and trashed=false",
-  "dest": "/Volumes/myhome/takeout"
+  "q": "(mimeType='image/jpeg' or mimeType='image/png') and trashed=false",
+  "dest": "/Volumes/myhome/photos"
 }
 ```
 
@@ -233,9 +233,17 @@ Exported files are downloaded sequentially (the Drive API does not support paral
 
 ______________________________________________________________________
 
-## Manifest Format
+## Manifests
 
-Manifests are written by `build` and updated after each download. They are plain JSON and safe to inspect or edit manually.
+A manifest is a local JSON file created and maintained by this tool — it is not a Google Drive concept. Running `gdrive build` queries the Drive API, collects metadata for every matching file, and writes the result to a manifest. From that point on, the manifest is the source of truth: `gdrive download` reads pending files from it, writes per-file status back after each download, and uses it to determine what remains on subsequent runs.
+
+This means you can:
+
+- Inspect or edit the manifest manually before downloading
+- Stop and resume a download at any point without losing progress
+- Archive a manifest as a record of what was downloaded and when
+
+Manifests are plain JSON and safe to inspect or edit manually.
 
 ```json
 {

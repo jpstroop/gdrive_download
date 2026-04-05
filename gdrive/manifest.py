@@ -1,4 +1,11 @@
-"""Manifest persistence and summary computation."""
+"""Manifest persistence and summary computation.
+
+A manifest is a local JSON file created and maintained by this tool — it is not a Google
+Drive concept. Running ``gdrive build`` queries the Drive API, collects metadata for every
+matching file, and writes the result to a manifest. From that point on the manifest is the
+source of truth: ``gdrive download`` reads pending files from it, writes per-file status
+back after each download, and uses it to determine what remains on subsequent runs.
+"""
 
 # Standard library imports
 from datetime import datetime
