@@ -1,6 +1,6 @@
-# Drive Batch Downloader
+# Drive Batch Downloader / Copier
 
-Resumable, checksum-verified Google Drive downloader. Download entire folders, or any set of files matching a Drive API query, in batches that fit available disk space. Progress is tracked in a local manifest file — a tool-managed JSON record of what exists and what has been downloaded — so runs survive interruptions and can be spread across multiple sessions.
+Resumable, checksum-verified Google Drive downloader and server-side Drive copier. Download entire folders to local disk, or copy them directly to another Drive folder you own — all in batches, with progress tracked in a local manifest file so runs survive interruptions and can be spread across multiple sessions.
 
 ______________________________________________________________________
 
@@ -26,15 +26,23 @@ You need an **OAuth 2.0 Client ID** (not an API key — API keys only work for p
 
 On first run the tool opens a browser for the OAuth consent flow and caches the token in `token.json`. Subsequent runs use the cached token automatically.
 
-This tool requests the `drive.readonly` scope only. It can list and download files but cannot create, modify, or delete anything in your Drive.
+This tool requests two scopes:
 
-**When setting up OAuth consent:** you will be asked to add scopes during the client configuration wizard. `drive.readonly` is not shown on the first page — click **Add or remove scopes** and paste in the full URL to find it:
+| Scope            | Purpose                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `drive.readonly` | List files, fetch metadata, download content (`build`, `status`, `download`) |
+| `drive.file`     | Create copied files and destination folders (`copy`)                         |
+
+`drive.file` only grants write access to files this app creates — it cannot modify or delete pre-existing Drive files. This is safer than the broad `drive` scope.
+
+**When setting up OAuth consent:** click **Add or remove scopes** and add both URLs:
 
 ```
 https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/drive.file
 ```
 
-Do not grant broader scopes like `drive` or `drive.file`; `drive.readonly` is sufficient and safest.
+**Upgrading from an earlier version:** if you previously used this tool with `drive.readonly` only, your cached `token.json` will not include `drive.file`. The tool detects this automatically and opens the browser for a new consent flow — you do not need to delete `token.json` manually.
 
 `credentials.json` and `token.json` are gitignored. Do not commit them.
 
@@ -51,11 +59,15 @@ ______________________________________________________________________
                        │
              ┌─────────▼──────────┐
              │ JSON manifest file │   ← tracks per-file status across sessions
-             └─────────┬──────────┘
-                       │
+             └────┬───────────┬───┘
+                  │           │
+             gdrive       gdrive
+             download      copy
+                  │           │
+            local disk    Drive folder
+            (converted)   (native format)
+                       ↑
                   gdrive status       ← inspect size and progress at any time
-                       │
-                 gdrive download      ← downloads, verifies checksums, updates manifest
 ```
 
 ______________________________________________________________________
@@ -117,6 +129,28 @@ Failed files are always retried first on the next run — no flags needed.
 
 ______________________________________________________________________
 
+### `gdrive copy`
+
+Copies pending (and previously failed) files server-side to a Drive folder you own, preserving directory structure. No local disk space is required and Google Workspace files stay in their native format — no conversion to DOCX/XLSX/PPTX occurs.
+
+```bash
+pdm run gdrive copy --manifest my.json --dest-folder 1ABCxyz123
+pdm run gdrive copy --manifest my.json --dest-folder 1ABCxyz123 --batch 10   # copy 10 files, then stop
+```
+
+A file-count progress bar is shown automatically. The manifest is updated after every file so the process can be stopped and resumed.
+
+| Flag            | Default            | Description                                                                                                                    |
+| --------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `--manifest`    | `manifest.json`    | Manifest to read and update                                                                                                    |
+| `--dest-folder` | *(none)*           | Destination Drive folder ID. Overrides the `drive_dest` field in the query file. Required if `drive_dest` is not in the query. |
+| `--batch`       | `0` (all)          | Maximum number of files to copy this run                                                                                       |
+| `--retries`     | `3`                | Retry attempts per file on failure                                                                                             |
+| `--credentials` | `credentials.json` | OAuth2 client secret file                                                                                                      |
+| `--token`       | `token.json`       | OAuth2 token cache                                                                                                             |
+
+______________________________________________________________________
+
 ## Query Files
 
 Query files are JSON and live in `queries/`. They describe what to download and, optionally, where to put it. See `queries/` for examples.
@@ -137,13 +171,14 @@ Downloads all files in a folder, preserving the directory structure. The tool tr
 }
 ```
 
-| Field       | Required | Description                                                               |
-| ----------- | -------- | ------------------------------------------------------------------------- |
-| `name`      | yes      | Human label; used in manifest and status output                           |
-| `type`      | yes      | `"folder"`                                                                |
-| `folder_id` | yes      | The Drive folder ID (from the URL: `drive.google.com/drive/folders/<id>`) |
-| `recursive` | no       | `true` (default) to include subfolders; `false` for top level only        |
-| `dest`      | no       | Default download destination; overridden by `--dest` on the CLI           |
+| Field        | Required | Description                                                               |
+| ------------ | -------- | ------------------------------------------------------------------------- |
+| `name`       | yes      | Human label; used in manifest and status output                           |
+| `type`       | yes      | `"folder"`                                                                |
+| `folder_id`  | yes      | The Drive folder ID (from the URL: `drive.google.com/drive/folders/<id>`) |
+| `recursive`  | no       | `true` (default) to include subfolders; `false` for top level only        |
+| `dest`       | no       | Default local download destination; overridden by `--dest` on the CLI     |
+| `drive_dest` | no       | Default Drive copy destination (folder ID); overridden by `--dest-folder` |
 
 ### Query download
 
@@ -158,12 +193,13 @@ Downloads all files matching a [Drive API query string](#drive-query-syntax).
 }
 ```
 
-| Field  | Required | Description                        |
-| ------ | -------- | ---------------------------------- |
-| `name` | yes      | Human label                        |
-| `type` | yes      | `"query"`                          |
-| `q`    | yes      | Drive API query string (see below) |
-| `dest` | no       | Default download destination       |
+| Field        | Required | Description                                                               |
+| ------------ | -------- | ------------------------------------------------------------------------- |
+| `name`       | yes      | Human label                                                               |
+| `type`       | yes      | `"query"`                                                                 |
+| `q`          | yes      | Drive API query string (see below)                                        |
+| `dest`       | no       | Default local download destination                                        |
+| `drive_dest` | no       | Default Drive copy destination (folder ID); overridden by `--dest-folder` |
 
 ______________________________________________________________________
 
@@ -194,6 +230,8 @@ ______________________________________________________________________
 
 ## Google Workspace Files
 
+### `gdrive download`
+
 Google Docs, Sheets, and Presentations cannot be downloaded as-is — they are exported automatically to Office formats:
 
 | Drive type    | Downloaded as |
@@ -203,6 +241,10 @@ Google Docs, Sheets, and Presentations cannot be downloaded as-is — they are e
 | Google Slides | `.pptx`       |
 
 Exported files are downloaded sequentially (the Drive API does not support parallel range requests for exports). A local MD5 checksum is computed after download and stored in the manifest for future reference.
+
+### `gdrive copy`
+
+When copying to Drive, Workspace files are copied in their **native format** — a Google Doc stays a Google Doc, a Presentation stays a Presentation. No conversion occurs. This is one of the primary advantages of `gdrive copy` over `gdrive download`.
 
 ______________________________________________________________________
 
@@ -249,13 +291,17 @@ Manifests are plain JSON and safe to inspect or edit manually.
       "status": "completed",
       "downloaded_at": "2026-03-30T15:23:11+00:00",
       "download_path": "2024/July/photo.jpg",
-      "failure_reason": ""
+      "failure_reason": "",
+      "drive_copy_id": "",
+      "copied_at": ""
     }
   ]
 }
 ```
 
-File status values: `pending`, `completed`, `failed`. Failed files are automatically retried first on the next `download` run.
+File status values: `pending`, `completed`, `failed`. Failed files are automatically retried first on the next `download` or `copy` run.
+
+The `drive_copy_id` and `copied_at` fields are populated by `gdrive copy` on success. They are empty for files processed by `gdrive download`.
 
 ______________________________________________________________________
 

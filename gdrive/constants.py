@@ -3,7 +3,10 @@
 # Standard library imports
 from pathlib import Path
 
-SCOPES: list[str] = ["https://www.googleapis.com/auth/drive.readonly"]
+SCOPES: list[str] = [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+]
 
 TOKEN_FILE: Path = Path("token.json")
 CREDENTIALS_FILE: Path = Path("credentials.json")
@@ -58,6 +61,7 @@ WORKSPACE_SKIP_TYPES: set[str] = {
 STATUS_PENDING: str = "pending"
 STATUS_COMPLETED: str = "completed"
 STATUS_FAILED: str = "failed"
+STATUS_SKIPPED: str = "skipped"
 
 LIST_FIELDS: str = (
     "nextPageToken, files(id, name, mimeType, size, md5Checksum, owners(displayName,emailAddress))"

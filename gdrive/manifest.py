@@ -17,6 +17,7 @@ from pathlib import Path
 from gdrive.constants import STATUS_COMPLETED
 from gdrive.constants import STATUS_FAILED
 from gdrive.constants import STATUS_PENDING
+from gdrive.constants import STATUS_SKIPPED
 from gdrive.models import DriveFile
 from gdrive.models import Manifest
 from gdrive.models import QuerySpec
@@ -37,6 +38,7 @@ def compute_summary(files: list[DriveFile]) -> JSONDict:
     completed = sum(1 for f in files if f.status == STATUS_COMPLETED)
     failed = sum(1 for f in files if f.status == STATUS_FAILED)
     pending = sum(1 for f in files if f.status == STATUS_PENDING)
+    skipped = sum(1 for f in files if f.status == STATUS_SKIPPED)
     total_bytes = sum(f.size for f in files)
     remaining_bytes = sum(f.size for f in files if f.status in (STATUS_PENDING, STATUS_FAILED))
     return {
@@ -46,6 +48,7 @@ def compute_summary(files: list[DriveFile]) -> JSONDict:
         "remaining_bytes": remaining_bytes,
         "remaining_size": format_bytes(remaining_bytes),
         "completed": completed,
+        "skipped": skipped,
         "failed": failed,
         "pending": pending,
     }
@@ -82,9 +85,15 @@ def print_status(manifest: Manifest) -> None:
     pending = [f for f in files if f.status == STATUS_PENDING]
     failed = [f for f in files if f.status == STATUS_FAILED]
     completed = [f for f in files if f.status == STATUS_COMPLETED]
+    skipped = [f for f in files if f.status == STATUS_SKIPPED]
     pending_size = sum(f.size for f in pending) + sum(f.size for f in failed)
 
-    status_icon = {STATUS_COMPLETED: "✔", STATUS_FAILED: "✗", STATUS_PENDING: " "}
+    status_icon = {
+        STATUS_COMPLETED: "✔",
+        STATUS_FAILED: "✗",
+        STATUS_PENDING: " ",
+        STATUS_SKIPPED: "—",
+    }
     width = 70
     print(f"\n{'─' * width}")
     for f in files:
@@ -95,4 +104,5 @@ def print_status(manifest: Manifest) -> None:
     print(f"{'─' * width}")
     print(f"  Total size:   {format_bytes(total_bytes)}")
     print(f"  Remaining:    {format_bytes(pending_size)}")
-    print(f"  Done: {len(completed)}  Failed: {len(failed)}  Pending: {len(pending)}")
+    skip_str = f"  Skipped: {len(skipped)}" if skipped else ""
+    print(f"  Done: {len(completed)}{skip_str}  Failed: {len(failed)}  Pending: {len(pending)}")

@@ -3,5 +3,6 @@
   "type": "folder",
   "folder_id": "REPLACE_WITH_FOLDER_ID",
   "recursive": true,
-  "dest": "/Volumes/MyDrive"
+  "dest": "/Volumes/MyDrive",
+  "drive_dest": "REPLACE_WITH_DEST_FOLDER_ID"
 }

@@ -1,7 +1,8 @@
 """Filter a gdrive manifest by owner email prefix and optionally organize by owner.
 
 This script is useful when you have built a broad manifest (e.g. all files accessible
-to you) and want to produce a focused manifest for a subset of owners before downloading.
+to you) and want to produce a focused manifest for a subset of owners before downloading
+or copying.
 
 Steps to use (example: files owned by former staff with "pendingdeletion-" accounts):
 
@@ -36,9 +37,19 @@ Steps to use (example: files owned by former staff with "pendingdeletion-" accou
 
         pdm run gdrive status --manifest manifests/pul_legacy.json
 
-  5. Download:
+  5a. Download to local disk:
 
         pdm run gdrive download --manifest manifests/pul_legacy.json --progress manifest
+
+  5b. OR copy server-side to a Drive folder you own (preserves native Workspace formats,
+      no local disk space required — progress bar shows file count automatically):
+
+        pdm run gdrive copy \
+            --manifest manifests/pul_legacy.json \
+            --dest-folder REPLACE_WITH_DEST_FOLDER_ID
+
+      With --folder-per-owner, per-owner subdirectories are created inside the
+      destination Drive folder, mirroring the structure that would be created locally.
 """
 
 # Standard library imports

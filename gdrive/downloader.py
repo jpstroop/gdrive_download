@@ -21,6 +21,7 @@ from gdrive.constants import DRIVE_EXPORT_URL
 from gdrive.constants import PARALLEL_CHUNK_SIZE
 from gdrive.constants import RETRY_BACKOFF_BASE
 from gdrive.constants import SEQUENTIAL_CHUNK_SIZE
+from gdrive.constants import STATUS_SKIPPED
 from gdrive.manifest import format_bytes
 from gdrive.models import DriveFile
 
@@ -169,6 +170,7 @@ def download_file(
     if f.is_workspace_file and not f.export_mime_type:
         reason = f"unsupported Workspace type: {f.drive_mime_type}"
         _msg(f"  SKIPPED {f.local_name} ({reason})")
+        f.status = STATUS_SKIPPED
         f.failure_reason = reason
         return False
 

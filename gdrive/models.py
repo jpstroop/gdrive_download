@@ -24,6 +24,9 @@ class QuerySpec:
     recursive: bool = True
     q: str = ""
     dest: str = ""  # optional default destination; CLI --dest takes precedence
+    drive_dest: str = (
+        ""  # optional Drive folder ID for gdrive copy; CLI --dest-folder takes precedence
+    )
 
     def to_json_dict(self) -> JSONDict:
         d: JSONDict = {"name": self.name, "type": self.type}
@@ -34,6 +37,8 @@ class QuerySpec:
             d["q"] = self.q
         if self.dest:
             d["dest"] = self.dest
+        if self.drive_dest:
+            d["drive_dest"] = self.drive_dest
         return d
 
     @staticmethod
@@ -45,6 +50,7 @@ class QuerySpec:
             recursive=bool(d.get("recursive", True)),
             q=str(d.get("q", "")),
             dest=str(d.get("dest", "")),
+            drive_dest=str(d.get("drive_dest", "")),
         )
 
     @staticmethod
@@ -71,6 +77,8 @@ class DriveFile:
     downloaded_at: str = ""
     download_path: str = ""  # relative to dest root; set on successful download
     failure_reason: str = ""
+    drive_copy_id: str = ""  # Drive file ID of the copy; set by gdrive copy on success
+    copied_at: str = ""  # UTC ISO timestamp; set by gdrive copy on success
 
     @property
     def is_workspace_file(self) -> bool:
@@ -100,6 +108,8 @@ class DriveFile:
             "downloaded_at": self.downloaded_at,
             "download_path": self.download_path,
             "failure_reason": self.failure_reason if self.status != STATUS_COMPLETED else "",
+            "drive_copy_id": self.drive_copy_id,
+            "copied_at": self.copied_at,
         }
 
     @staticmethod
@@ -120,6 +130,8 @@ class DriveFile:
             downloaded_at=str(d.get("downloaded_at", "")),
             download_path=str(d.get("download_path", "")),
             failure_reason=str(d.get("failure_reason", "")),
+            drive_copy_id=str(d.get("drive_copy_id", "")),
+            copied_at=str(d.get("copied_at", "")),
         )
 
     @staticmethod

@@ -23,7 +23,9 @@ from gdrive.constants import DEFAULT_RETRIES
 from gdrive.constants import STATUS_COMPLETED
 from gdrive.constants import STATUS_FAILED
 from gdrive.constants import STATUS_PENDING
+from gdrive.constants import STATUS_SKIPPED
 from gdrive.constants import TOKEN_FILE
+from gdrive.copier import copy_file
 from gdrive.downloader import download_file
 from gdrive.lister import enumerate_folder
 from gdrive.lister import enumerate_query
@@ -113,6 +115,34 @@ def _parse_args() -> Namespace:
         choices=["file", "manifest"],
         default="file",
         help="Progress bar mode: one bar per file (default) or one bar for the whole batch.",
+    )
+
+    # copy
+    p_copy = sub.add_parser("copy", help="Copy files server-side to a Google Drive folder.")
+    p_copy.add_argument(
+        "--manifest",
+        type=Path,
+        default=DEFAULT_MANIFEST,
+        help=f"Manifest to read/update (default: {DEFAULT_MANIFEST}).",
+    )
+    p_copy.add_argument(
+        "--dest-folder",
+        type=str,
+        default=None,
+        dest="dest_folder",
+        help="Destination Drive folder ID (overrides 'drive_dest' in query file).",
+    )
+    p_copy.add_argument(
+        "--batch",
+        type=int,
+        default=0,
+        help="Max files to copy this run (0 = all pending, default: 0).",
+    )
+    p_copy.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES,
+        help=f"Retry attempts per file (default: {DEFAULT_RETRIES}).",
     )
 
     return parser.parse_args()
@@ -210,7 +240,7 @@ def _cmd_download(args: Namespace) -> None:
                 f.downloaded_at = datetime.now(timezone.utc).isoformat()
                 f.failure_reason = ""
                 succeeded += 1
-            else:
+            elif f.status != STATUS_SKIPPED:
                 f.status = STATUS_FAILED
                 if f.size > 0:
                     manifest_bar.update(f.size)
@@ -225,7 +255,7 @@ def _cmd_download(args: Namespace) -> None:
                 f.downloaded_at = datetime.now(timezone.utc).isoformat()
                 f.failure_reason = ""
                 succeeded += 1
-            else:
+            elif f.status != STATUS_SKIPPED:
                 f.status = STATUS_FAILED
             save_manifest(manifest, args.manifest)
 
@@ -237,6 +267,73 @@ def _cmd_download(args: Namespace) -> None:
         print("All files downloaded!")
 
 
+def _cmd_copy(args: Namespace) -> None:
+    """Copy pending files server-side to a destination Google Drive folder."""
+    manifest = load_manifest(args.manifest)
+
+    # Resolve dest folder: CLI > query file > error
+    dest_folder: str | None = args.dest_folder
+    if dest_folder is None and manifest.query.drive_dest:
+        dest_folder = manifest.query.drive_dest
+    if dest_folder is None:
+        print(
+            "error: no destination folder specified. "
+            "Use --dest-folder or add a 'drive_dest' field to your query file."
+        )
+        sys.exit(1)
+
+    print("Authenticating with Google Drive...")
+    creds = get_credentials(args.credentials, args.token)
+    service = build("drive", "v3", credentials=creds)
+
+    failed = [f for f in manifest.files if f.status == STATUS_FAILED]
+    pending = [f for f in manifest.files if f.status == STATUS_PENDING]
+    completed = [f for f in manifest.files if f.status == STATUS_COMPLETED]
+    queue = failed + pending
+
+    batch = queue if args.batch == 0 else queue[: args.batch]
+
+    print(f"\n{'=' * 60}")
+    print(f"Total files:   {len(manifest.files)}")
+    print(f"Completed:     {len(completed)}")
+    print(f"Failed:        {len(failed)}")
+    print(f"Pending:       {len(pending)}")
+    print(f"This batch:    {len(batch)}")
+    print(f"Destination:   {dest_folder}  (Drive folder ID)")
+    print(f"Retries:       {args.retries} per file")
+    print(f"{'=' * 60}\n")
+
+    if not batch:
+        print("Nothing to copy.")
+        return
+
+    folder_cache: dict[str, str] = {}
+    succeeded = 0
+    bar: tqdm = tqdm(  # type: ignore[type-arg]
+        total=len(batch), unit="file", desc="0 copied", leave=True
+    )
+    for i, f in enumerate(batch, 1):
+        bar.write(f"[{i}/{len(batch)}] {f.name}")
+        ok = copy_file(service, f, dest_folder, folder_cache, args.retries)
+        if ok:
+            f.status = STATUS_COMPLETED
+            succeeded += 1
+            bar.set_description(f"{succeeded} copied", refresh=False)
+        elif f.status != STATUS_SKIPPED:
+            f.status = STATUS_FAILED
+            bar.write(f"  FAILED: {f.failure_reason}")
+        bar.update(1)
+        save_manifest(manifest, args.manifest)
+    bar.close()
+
+    remaining = len(queue) - len(batch)
+    print(f"\nBatch complete: {succeeded}/{len(batch)} succeeded.")
+    if remaining > 0:
+        print(f"{remaining} files still pending. Re-run to continue.")
+    else:
+        print("All files copied!")
+
+
 def main() -> None:
     args = _parse_args()
     if args.subcommand == "build":
@@ -245,3 +342,5 @@ def main() -> None:
         _cmd_status(args)
     elif args.subcommand == "download":
         _cmd_download(args)
+    elif args.subcommand == "copy":
+        _cmd_copy(args)
