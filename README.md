@@ -171,33 +171,6 @@ ______________________________________________________________________
 
 The `q` field accepts the [Drive API search query language](https://developers.google.com/workspace/drive/api/guides/search-files). Queries are strings composed of one or more clauses joined by `and`, `or`, or `not`.
 
-### Operators
-
-| Operator             | Example                                            |
-| -------------------- | -------------------------------------------------- |
-| `=`                  | `mimeType = 'application/pdf'`                     |
-| `!=`                 | `mimeType != 'application/vnd.google-apps.folder'` |
-| `contains`           | `name contains 'report'`                           |
-| `in`                 | `'folder_id' in parents`                           |
-| `>`, `>=`, `<`, `<=` | `modifiedTime > '2024-01-01T00:00:00'`             |
-| `and`                | `name contains 'photo' and trashed=false`          |
-| `or`                 | `mimeType='image/jpeg' or mimeType='image/png'`    |
-| `not`                | `not name contains 'draft'`                        |
-
-### Common fields
-
-| Field             | Type       | Notes                                       |
-| ----------------- | ---------- | ------------------------------------------- |
-| `name`            | string     | Filename (use `contains` for partial match) |
-| `mimeType`        | string     | Exact MIME type (see below)                 |
-| `'id' in parents` | —          | Files directly inside folder with that ID   |
-| `trashed`         | boolean    | `true` or `false`                           |
-| `modifiedTime`    | datetime   | ISO 8601 string: `'2024-06-01T00:00:00'`    |
-| `createdTime`     | datetime   | ISO 8601 string                             |
-| `owners`          | collection | `'user@example.com' in owners`              |
-| `fullText`        | string     | Full-text search across content             |
-| `starred`         | boolean    | `starred = true`                            |
-
 ### Examples
 
 ```
@@ -286,7 +259,7 @@ File status values: `pending`, `completed`, `failed`. Failed files are automatic
 
 ______________________________________________________________________
 
-## Tips
+## Miscellaneous
 
 **Check total size before committing to a download:**
 
@@ -299,3 +272,5 @@ pdm run gdrive build --query queries/my_folder.json && pdm run gdrive status
 **Slow connection or limited time:** use `--batch` to download a fixed number of files per session.
 
 **Rate limits:** if you hit Drive API rate limits during `build`, re-running it will skip files that already have metadata.
+
+**Filtering a manifest:** `scripts/filter_manifest.py` lets you produce a focused manifest from a broader one — for example, keeping only files owned by a particular set of users. See the script header for full usage and an example workflow.
