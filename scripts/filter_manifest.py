@@ -48,8 +48,6 @@ Steps to use (example: files owned by former staff with "pendingdeletion-" accou
             --manifest manifests/pul_legacy.json \
             --dest-folder REPLACE_WITH_DEST_FOLDER_ID
 
-      With --folder-per-owner, per-owner subdirectories are created inside the
-      destination Drive folder, mirroring the structure that would be created locally.
 """
 
 # Standard library imports

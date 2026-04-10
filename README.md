@@ -305,6 +305,48 @@ The `drive_copy_id` and `copied_at` fields are populated by `gdrive copy` on suc
 
 ______________________________________________________________________
 
+## Recipes
+
+### Copy a folder from one Drive to another
+
+1. Create a query file pointing at the source folder and the destination folder:
+
+```json
+{
+  "name": "My Project",
+  "type": "folder",
+  "folder_id": "SOURCE_FOLDER_ID",
+  "recursive": true,
+  "drive_dest": "DEST_FOLDER_ID"
+}
+```
+
+Both IDs come from the Drive URL: `drive.google.com/drive/folders/<ID>`. The destination must be a folder you own.
+
+2. Build the manifest:
+
+```bash
+pdm run gdrive build --query queries/my_project.json --manifest my_project.json
+```
+
+3. Review size and file count:
+
+```bash
+pdm run gdrive status --manifest my_project.json
+```
+
+4. Copy:
+
+```bash
+pdm run gdrive copy --manifest my_project.json
+```
+
+The full directory structure is recreated under the destination folder. Google Workspace files (Docs, Sheets, Slides, etc.) stay in their native format — no conversion occurs. Subfolders themselves appear as `—` (skipped) in status output; this is expected — they are created automatically as files within them are copied.
+
+**Note:** Empty subfolders are not recreated. If the source contains folders with no files, those folders will not appear in the destination.
+
+______________________________________________________________________
+
 ## Miscellaneous
 
 **Check total size before committing to a download:**
